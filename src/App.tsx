@@ -28,6 +28,7 @@ import * as Audio from './audio'
 // -----------------------------------------------------------------------------
 
 type Screen =
+  | 'welcome'
   | 'home'
   | 'peekaboo'
   | 'egg'
@@ -100,21 +101,69 @@ function useSettings() {
 
 const SESSION_THRESHOLD = { short: 3, medium: 5 } as const
 
+/** Fullscreen support (no-ops gracefully where the browser blocks it). */
+function useFullscreen() {
+  const [isFs, setIsFs] = useState(false)
+  useEffect(() => {
+    const onChange = () => setIsFs(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [])
+  const supported =
+    typeof document !== 'undefined' && (document.fullscreenEnabled ?? false)
+  const toggle = useCallback(() => {
+    try {
+      if (document.fullscreenElement) {
+        void document.exitFullscreen?.()
+      } else {
+        const p = document.documentElement.requestFullscreen?.()
+        if (p && typeof p.catch === 'function') p.catch(() => {})
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [])
+  return { isFs, toggle, supported }
+}
+
+function FullscreenButton({ large = false }: { large?: boolean }) {
+  const { isFs, toggle, supported } = useFullscreen()
+  if (!supported) return null
+  return (
+    <button
+      type="button"
+      className={`icon-btn ${large ? 'icon-btn--lg' : ''}`}
+      aria-label={isFs ? 'Exit full screen' : 'Full screen'}
+      onClick={() => {
+        Audio.unlockAudio()
+        toggle()
+      }}
+    >
+      {isFs ? '🡼' : '⛶'}
+    </button>
+  )
+}
+
 function pickRandom<T>(arr: T[], notId?: string): T {
   const pool = notId ? arr.filter((x) => (x as { id?: string }).id !== notId) : arr
   return pool[Math.floor(Math.random() * pool.length)] ?? arr[0]
 }
 
-/** Plays a creature's name then its sound, gently spaced out. */
+// A friendly grown-up voice leads: a soft chime, then the name, then the
+// sound said out loud ("Cow! ... Moo!"), with a gentle accent underneath.
 function announceAnimal(a: Animal) {
-  Audio.speakWord(a.name)
-  window.setTimeout(() => Audio.playAnimalSound(a.id), 650)
-  if (a.id === 'gorilla') window.setTimeout(() => Audio.playGorillaThump(), 1200)
+  Audio.playReveal()
+  window.setTimeout(() => Audio.speakWord(a.name), 200)
+  window.setTimeout(() => Audio.speakWord(a.soundText), 1050)
+  if (a.id === 'gorilla') window.setTimeout(() => Audio.playGorillaThump(), 1900)
+  else window.setTimeout(() => Audio.playAnimalSound(a.id), 1900)
 }
 
 function announceDino(d: Dinosaur) {
-  Audio.speakWord(d.name)
-  window.setTimeout(() => Audio.playDinoSound(d.id), 650)
+  Audio.playReveal()
+  window.setTimeout(() => Audio.speakWord(d.name), 200)
+  window.setTimeout(() => Audio.speakWord(d.soundText), 1050)
+  window.setTimeout(() => Audio.playDinoSound(d.id), 1900)
 }
 
 // =============================================================================
@@ -173,6 +222,7 @@ function TopBar({
             🔊
           </button>
         )}
+        <FullscreenButton />
         <button
           type="button"
           className="icon-btn"
@@ -356,6 +406,7 @@ function HomeScreen({
         <button type="button" className="text-btn" onClick={() => go('done')}>
           All Done 👋
         </button>
+        <FullscreenButton large />
         <button type="button" className="icon-btn icon-btn--lg" aria-label="Parent settings" onClick={openParents}>
           ⚙️
         </button>
@@ -1279,12 +1330,37 @@ function AllDoneScreen({ onHome }: { onHome: () => void }) {
 }
 
 // =============================================================================
+//  WELCOME SCREEN — first tap unlocks + warms up the friendly voice
+// =============================================================================
+
+function WelcomeScreen({ onStart }: { onStart: () => void }) {
+  const start = () => {
+    Audio.unlockAudio()
+    Audio.warmUpSpeech()
+    Audio.playReveal()
+    window.setTimeout(() => Audio.speakWord('Little Dino Safari'), 350)
+    onStart()
+  }
+  return (
+    <button type="button" className="screen welcome" aria-label="Tap to play Little Dino Safari" onClick={start}>
+      <div className="welcome__art" aria-hidden="true">
+        <span className="welcome__dino float-soft">🦕</span>
+        <span className="welcome__spark twinkle">✨</span>
+      </div>
+      <h1 className="welcome__title">Little Dino Safari</h1>
+      <p className="welcome__sub">Let’s play together!</p>
+      <span className="welcome__cta pulse-soft">👉 Tap to start</span>
+    </button>
+  )
+}
+
+// =============================================================================
 //  APP ROOT — router, settings persistence, audio wiring
 // =============================================================================
 
 export default function App() {
   const [settings, setSettings] = useState<Settings>(loadSettings)
-  const [screen, setScreen] = useState<Screen>('home')
+  const [screen, setScreen] = useState<Screen>('welcome')
   const [showGate, setShowGate] = useState(false)
   const activitiesRef = useRef(0)
 
@@ -1349,15 +1425,19 @@ export default function App() {
   return (
     <SettingsContext.Provider value={ctxValue}>
       <div className="app">
-        {screen === 'home' && <HomeScreen go={go} openParents={() => setShowGate(true)} />}
-        {screen === 'peekaboo' && <PeekabooScreen onHome={onHome} onDone={finishActivity} />}
-        {screen === 'egg' && <EggHatchScreen onHome={onHome} onDone={finishActivity} />}
-        {screen === 'feed' && <FeedScreen onHome={onHome} onDone={finishActivity} />}
-        {screen === 'bubbles' && <BubblePopScreen onHome={onHome} onDone={finishActivity} />}
-        {screen === 'bigsmall' && <BigSmallScreen onHome={onHome} onDone={finishActivity} />}
-        {screen === 'story' && <StoryScreen onHome={onHome} onDone={finishActivity} />}
-        {screen === 'settings' && <ParentSettingsScreen onHome={onHome} />}
-        {screen === 'done' && <AllDoneScreen onHome={onHome} />}
+        {/* keyed wrapper => each screen change gently fades/slides in */}
+        <div key={screen} className="screen-anim">
+          {screen === 'welcome' && <WelcomeScreen onStart={() => setScreen('home')} />}
+          {screen === 'home' && <HomeScreen go={go} openParents={() => setShowGate(true)} />}
+          {screen === 'peekaboo' && <PeekabooScreen onHome={onHome} onDone={finishActivity} />}
+          {screen === 'egg' && <EggHatchScreen onHome={onHome} onDone={finishActivity} />}
+          {screen === 'feed' && <FeedScreen onHome={onHome} onDone={finishActivity} />}
+          {screen === 'bubbles' && <BubblePopScreen onHome={onHome} onDone={finishActivity} />}
+          {screen === 'bigsmall' && <BigSmallScreen onHome={onHome} onDone={finishActivity} />}
+          {screen === 'story' && <StoryScreen onHome={onHome} onDone={finishActivity} />}
+          {screen === 'settings' && <ParentSettingsScreen onHome={onHome} />}
+          {screen === 'done' && <AllDoneScreen onHome={onHome} />}
+        </div>
 
         {showGate && (
           <ParentGate

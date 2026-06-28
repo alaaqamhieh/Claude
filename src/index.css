@@ -902,3 +902,161 @@ button {
     font-size: 3.8rem;
   }
 }
+
+/* =============================================================================
+   Welcome screen + smoother, friendlier motion
+   ============================================================================ */
+.welcome {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 14px;
+  background: linear-gradient(180deg, #d9f3e2 0%, #eafbe2 55%, #d8f0c4 100%);
+  width: 100%;
+  border: none;
+}
+.welcome__art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  margin-bottom: 6px;
+}
+.welcome__dino {
+  font-size: min(40vw, 200px);
+  line-height: 1;
+  filter: drop-shadow(0 10px 14px rgba(80, 120, 90, 0.25));
+}
+.welcome__spark {
+  position: absolute;
+  top: -6%;
+  right: -2%;
+  font-size: min(12vw, 60px);
+}
+.welcome__title {
+  font-size: 2.4rem;
+  margin: 0;
+  color: var(--accent-deep);
+}
+.welcome__sub {
+  font-size: 1.3rem;
+  margin: 0;
+  color: var(--ink-soft);
+}
+.welcome__cta {
+  margin-top: 18px;
+  background: var(--card);
+  border-radius: 999px;
+  padding: 18px 30px;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+/* Gentle screen-change transition */
+.screen-anim {
+  height: 100%;
+  animation: screenIn 0.45s ease both;
+}
+@keyframes screenIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.992);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Reusable gentle idle motions */
+@keyframes floatSoft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+.float-soft {
+  animation: floatSoft 3.6s ease-in-out infinite;
+}
+@keyframes pulseSoft {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+.pulse-soft {
+  animation: pulseSoft 1.8s ease-in-out infinite;
+}
+@keyframes bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(-1.5deg);
+  }
+}
+
+/* Revealed creatures gently breathe/bob so the screen feels alive */
+.creature-emoji {
+  animation: bob 3.8s ease-in-out infinite;
+}
+.feed-animal .creature-emoji,
+.sort-item .creature-emoji {
+  animation: bob 4.2s ease-in-out infinite;
+}
+
+/* Home tiles: soft staggered entrance + floating icons */
+.tile {
+  animation: tileIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.tile:nth-child(1) { animation-delay: 0.04s; }
+.tile:nth-child(2) { animation-delay: 0.1s; }
+.tile:nth-child(3) { animation-delay: 0.16s; }
+.tile:nth-child(4) { animation-delay: 0.22s; }
+.tile:nth-child(5) { animation-delay: 0.28s; }
+.tile:nth-child(6) { animation-delay: 0.34s; }
+@keyframes tileIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.tile__emoji {
+  animation: floatSoft 4s ease-in-out infinite;
+}
+.tile:nth-child(even) .tile__emoji {
+  animation-duration: 4.6s;
+}
+
+/* Smoother, springier presses everywhere */
+.big-btn,
+.tile,
+.icon-btn,
+.zone,
+.drag-item,
+.egg,
+.gate-num {
+  transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.16s ease;
+}
+
+/* Home title gentle sway */
+.home__title {
+  animation: floatSoft 5s ease-in-out infinite;
+}
+
+/* Softer, smoother existing reveal */
+.pop-in {
+  animation: popIn 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
