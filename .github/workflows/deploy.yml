@@ -6,7 +6,9 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    # Deploys run from whichever of these is the repo's default branch
+    # (GitHub Pages only allows deployments from the default branch).
+    branches: [main, claude/little-dino-safari-game-hj4hmo]
   workflow_dispatch:
 
 # Permissions the deploy needs.
