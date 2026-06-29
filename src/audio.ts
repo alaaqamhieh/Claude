@@ -117,6 +117,44 @@ function ensureContext(): AudioContext | null {
 export function unlockAudio() {
   ensureContext()
   loadVoices()
+  void loadManifests()
+}
+
+// -----------------------------------------------------------------------------
+//  Real-audio manifests (optional). Generated at build time into /public.
+//  voice/manifest.json : { "<slug>": "<file>.mp3", ... }  (AI narration)
+//  sounds/manifest.json: ["cow", "dog", ...]               (real animal sfx)
+//  Both are same-origin static files — no external calls, no tracking.
+// -----------------------------------------------------------------------------
+
+let voiceManifest: Record<string, string> | null = null
+let soundManifest: Set<string> | null = null
+let manifestsTried = false
+
+export function slug(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/['’!?.,]/g, '')
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+async function loadManifests() {
+  if (manifestsTried) return
+  manifestsTried = true
+  try {
+    const v = await fetch('voice/manifest.json', { cache: 'no-cache' })
+    if (v.ok) voiceManifest = await v.json()
+  } catch {
+    /* no voice pack — device TTS will be used */
+  }
+  try {
+    const s = await fetch('sounds/manifest.json', { cache: 'no-cache' })
+    if (s.ok) soundManifest = new Set<string>(await s.json())
+  } catch {
+    /* no sound pack — synth will be used */
+  }
 }
 
 function debounced(tag: string, gapMs: number): boolean {
@@ -336,7 +374,9 @@ const ANIMAL_SOUNDS: Record<string, SoundMaker> = {
 export function playAnimalSound(id: string) {
   if (!settings.animalSoundsOn) return
   if (!debounced('animal:' + id, 120)) return
-  ANIMAL_SOUNDS[id]?.()
+  // Prefer a real recorded clip if the build shipped one; else gentle synth.
+  if (soundManifest?.has(id)) playFile(id, 'sounds/')
+  else ANIMAL_SOUNDS[id]?.()
 }
 
 /** Two soft low thumps — the gorilla's playful chest beat. */
@@ -378,7 +418,8 @@ const DINO_SOUNDS: Record<string, SoundMaker> = {
 export function playDinoSound(id: string) {
   if (!settings.dinoSoundsOn) return
   if (!debounced('dino:' + id, 120)) return
-  DINO_SOUNDS[id]?.()
+  if (soundManifest?.has(id)) playFile(id, 'sounds/')
+  else DINO_SOUNDS[id]?.()
 }
 
 // =============================================================================
@@ -437,6 +478,17 @@ export function warmUpSpeech() {
 export function speakWord(word: string, opts?: { rate?: number; pitch?: number }) {
   if (!settings.spokenWordsOn || settings.muted) return
   if (!debounced('speak:' + word, 90)) return
+  // Prefer a natural pre-recorded clip (AI-narrated at build time) if present.
+  const s = slug(word)
+  if (voiceManifest && voiceManifest[s]) {
+    try {
+      window.speechSynthesis?.cancel()
+    } catch {
+      /* ignore */
+    }
+    playFile(voiceManifest[s].replace(/\.mp3$/, ''), 'voice/')
+    return
+  }
   try {
     const synth = window.speechSynthesis
     if (!synth) return
@@ -526,16 +578,28 @@ export function stopMusic() {
 // =============================================================================
 
 const fileCache: Record<string, HTMLAudioElement> = {}
+let lastClip: HTMLAudioElement | null = null
 
 export function playFile(name: string, baseUrl = 'sounds/') {
   if (settings.muted) return
   try {
-    let el = fileCache[name]
+    const key = baseUrl + name
+    let el = fileCache[key]
     if (!el) {
       el = new Audio(`${baseUrl}${name}.mp3`)
-      fileCache[name] = el
+      fileCache[key] = el
     }
-    el.volume = settings.calmMode ? 0.4 : 0.8
+    // Never layer clips into chaos — stop whatever was playing first.
+    if (lastClip && lastClip !== el) {
+      try {
+        lastClip.pause()
+        lastClip.currentTime = 0
+      } catch {
+        /* ignore */
+      }
+    }
+    lastClip = el
+    el.volume = settings.calmMode ? 0.55 : 0.9
     el.currentTime = 0
     void el.play().catch(() => {})
   } catch {

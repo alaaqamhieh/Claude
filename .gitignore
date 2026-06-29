@@ -5,3 +5,7 @@ dist-ssr
 .DS_Store
 .vite
 *.tsbuildinfo
+
+# Generated at build time by scripts/generate-audio.mjs (keep the manifests)
+public/voice/*.mp3
+public/sounds/*.mp3

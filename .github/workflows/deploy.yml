@@ -38,6 +38,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Cache generated audio so we don't re-call the TTS API every deploy.
+      - name: Cache generated audio
+        uses: actions/cache@v4
+        with:
+          path: |
+            public/voice
+            public/sounds
+          key: audio-${{ hashFiles('scripts/generate-audio.mjs') }}
+
+      # Generate natural voice + soft animal sounds (needs the TTS_API_KEY
+      # secret). Skips cleanly if the secret is absent — synth fallback is used.
+      - name: Generate audio
+        env:
+          TTS_API_KEY: ${{ secrets.TTS_API_KEY }}
+          TTS_PROVIDER: ${{ vars.TTS_PROVIDER }}
+          TTS_VOICE_ID: ${{ vars.TTS_VOICE_ID }}
+        run: node scripts/generate-audio.mjs
+
       - name: Build
         run: npm run build
 

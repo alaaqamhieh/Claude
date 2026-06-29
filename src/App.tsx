@@ -21,6 +21,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import { ANIMALS, DINOSAURS, type Animal, type Dinosaur } from './data'
+import { Creature, Scene, type SceneVariant } from './characters'
 import * as Audio from './audio'
 
 // -----------------------------------------------------------------------------
@@ -222,7 +223,6 @@ function TopBar({
             🔊
           </button>
         )}
-        <FullscreenButton />
         <button
           type="button"
           className="icon-btn"
@@ -255,26 +255,18 @@ function ParentPrompt({ text }: { text: string }) {
 
 function Gorilla({
   beating,
-  size = 'min(46vw, 240px)',
+  className = '',
   label = 'Friendly smiling gorilla',
 }: {
   beating: boolean
-  size?: string
+  className?: string
   label?: string
 }) {
   const { settings } = useSettings()
   const animate = beating && !settings.reducedMotion
   return (
-    <div className={`gorilla ${animate ? 'gorilla--beat' : ''}`} style={{ fontSize: size }}>
-      <span className="gorilla__face" role="img" aria-label={label}>
-        🦍
-      </span>
-      <span className="gorilla__fist gorilla__fist--l" aria-hidden="true">
-        ✊
-      </span>
-      <span className="gorilla__fist gorilla__fist--r" aria-hidden="true">
-        ✊
-      </span>
+    <div className={`gorilla ${animate ? 'gorilla--beat' : ''}`}>
+      <Creature id="gorilla" title={label} className={className} />
     </div>
   )
 }
@@ -427,13 +419,13 @@ function PeekabooScreen({ onHome, onDone }: { onHome: () => void; onDone: () => 
   const [round, setRound] = useState(0)
   const [beat, setBeat] = useState(false)
 
-  const habitatCover: Record<string, { emoji: string; bg: string }> = {
-    farm: { emoji: '🌾', bg: 'scene--farm' },
-    jungle: { emoji: '🌿', bg: 'scene--jungle' },
-    pond: { emoji: '💧', bg: 'scene--pond' },
-    savanna: { emoji: '🌳', bg: 'scene--savanna' },
-    sky: { emoji: '☁️', bg: 'scene--sky' },
-    dinoland: { emoji: '🌋', bg: 'scene--jungle' },
+  const habitatCover: Record<string, { emoji: string; bg: string; variant: SceneVariant }> = {
+    farm: { emoji: '🌾', bg: 'scene--farm', variant: 'farm' },
+    jungle: { emoji: '🌿', bg: 'scene--jungle', variant: 'jungle' },
+    pond: { emoji: '💧', bg: 'scene--pond', variant: 'pond' },
+    savanna: { emoji: '🌳', bg: 'scene--savanna', variant: 'savanna' },
+    sky: { emoji: '☁️', bg: 'scene--sky', variant: 'sky' },
+    dinoland: { emoji: '🌋', bg: 'scene--jungle', variant: 'jungle' },
   }
   const cover = habitatCover[animal.habitat]
 
@@ -469,6 +461,7 @@ function PeekabooScreen({ onHome, onDone }: { onHome: () => void; onDone: () => 
 
   return (
     <div className={`screen scene ${cover.bg}`}>
+      <Scene variant={cover.variant} />
       <TopBar title="Peekaboo" onHome={onHome} onReplay={revealed ? () => announceAnimal(animal) : undefined} />
 
       <div className="stage">
@@ -497,9 +490,7 @@ function PeekabooScreen({ onHome, onDone }: { onHome: () => void; onDone: () => 
             aria-label={`${animal.name}. ${animal.soundText}`}
             onClick={reveal}
           >
-            <span className="creature-emoji" aria-hidden="true">
-              {animal.emoji}
-            </span>
+            <Creature id={animal.id} title={animal.name} />
             <span className="creature-name">{animal.name}</span>
             <span className="creature-sound">{animal.soundText}</span>
           </button>
@@ -559,6 +550,7 @@ function EggHatchScreen({ onHome, onDone }: { onHome: () => void; onDone: () => 
 
   return (
     <div className="screen scene scene--jungle">
+      <Scene variant="jungle" />
       <TopBar title="Dino Eggs" onHome={onHome} onReplay={hatched ? repeat : undefined} />
 
       <div className="stage">
@@ -588,9 +580,7 @@ function EggHatchScreen({ onHome, onDone }: { onHome: () => void; onDone: () => 
               aria-label={`${hatched.name}. ${hatched.soundText}`}
               onClick={repeat}
             >
-              <span className="creature-emoji" aria-hidden="true">
-                {hatched.emoji}
-              </span>
+              <Creature id={hatched.id} title={hatched.name} />
               <span className="creature-name">{hatched.name}</span>
               <span className="creature-sound">{hatched.soundText}</span>
             </button>
@@ -684,16 +674,19 @@ function FeedScreen({ onHome, onDone }: { onHome: () => void; onDone: () => void
 
   return (
     <div className="screen scene scene--farm">
+      <Scene variant="farm" />
       <TopBar title="Feed Time" onHome={onHome} onReplay={() => Audio.speakWord(`Feed the ${animal.name}`)} />
 
       <div className="stage stage--feed">
         <div className="feed-animal" data-dropzone="animal">
           {animal.id === 'gorilla' ? (
-            <Gorilla beating={status === 'happy'} size="min(38vw, 190px)" />
+            <Gorilla beating={status === 'happy'} />
           ) : (
-            <span className={`creature-emoji ${status === 'happy' && !settings.reducedMotion ? 'nom' : ''}`} aria-hidden="true">
-              {animal.emoji}
-            </span>
+            <Creature
+              id={animal.id}
+              title={animal.name}
+              className={status === 'happy' && !settings.reducedMotion ? 'nom' : ''}
+            />
           )}
           <span className="creature-name">{animal.name}</span>
         </div>
@@ -831,6 +824,7 @@ function BubblePopScreen({ onHome, onDone }: { onHome: () => void; onDone: () =>
 
   return (
     <div className="screen scene scene--sky">
+      <Scene variant="sky" />
       <TopBar title="Bubbles" onHome={onHome} />
 
       <div className="bubble-stage" aria-label="Floating bubbles to pop">
@@ -877,16 +871,16 @@ function BubblePopScreen({ onHome, onDone }: { onHome: () => void; onDone: () =>
 //  GAME 5 — BIG / SMALL SORTING
 // =============================================================================
 
-type SortItem = { id: string; emoji: string; name: string; size: 'big' | 'small'; isGorilla?: boolean }
+type SortItem = { id: string; emoji: string; name: string; size: 'big' | 'small'; isGorilla?: boolean; creatureId?: string }
 
 function BigSmallScreen({ onHome, onDone }: { onHome: () => void; onDone: () => void }) {
   const { settings } = useSettings()
 
   const items = useMemo<SortItem[]>(() => {
     const list: SortItem[] = []
-    for (const a of ANIMALS) list.push({ id: a.id, emoji: a.emoji, name: a.name, size: a.size, isGorilla: a.id === 'gorilla' })
+    for (const a of ANIMALS) list.push({ id: a.id, emoji: a.emoji, name: a.name, size: a.size, isGorilla: a.id === 'gorilla', creatureId: a.id })
     if (settings.dinosaursEnabled) {
-      for (const d of DINOSAURS) list.push({ id: 'dino-' + d.id, emoji: d.emoji, name: d.name, size: d.size })
+      for (const d of DINOSAURS) list.push({ id: 'dino-' + d.id, emoji: d.emoji, name: d.name, size: d.size, creatureId: d.id })
     }
     list.push({ id: 'egg', emoji: '🥚', name: 'Small egg', size: 'small' })
     return list
@@ -925,13 +919,18 @@ function BigSmallScreen({ onHome, onDone }: { onHome: () => void; onDone: () => 
 
   return (
     <div className="screen scene scene--savanna">
+      <Scene variant="savanna" />
       <TopBar title="Big & Small" onHome={onHome} onReplay={() => Audio.speakWord(item.name)} />
 
       <div className="stage stage--sort">
         <div className="sort-item-wrap">
           {item.isGorilla ? (
             <DragItem ariaLabel={`Sort the ${item.name}`} className="sort-item" onChoose={(z) => z && answer(z as 'big' | 'small')}>
-              <Gorilla beating={feedback === 'right'} size="min(30vw, 150px)" />
+              <Gorilla beating={feedback === 'right'} />
+            </DragItem>
+          ) : item.creatureId ? (
+            <DragItem ariaLabel={`Sort the ${item.name}`} className="sort-item" onChoose={(z) => z && answer(z as 'big' | 'small')}>
+              <Creature id={item.creatureId} title={item.name} className={feedback === 'right' && !settings.reducedMotion ? 'pop-in' : ''} />
             </DragItem>
           ) : (
             <DragItem ariaLabel={`Sort the ${item.name}`} className="sort-item" onChoose={(z) => z && answer(z as 'big' | 'small')}>
@@ -981,6 +980,7 @@ interface StoryPage {
   prompt: string
   emoji: string
   isGorilla?: boolean
+  creatureId?: string
   onTap: () => void
 }
 
@@ -1001,6 +1001,7 @@ function StoryScreen({ onHome, onDone }: { onHome: () => void; onDone: () => voi
       text: 'The little dinosaur wakes up.',
       prompt: 'Can you stretch too?',
       emoji: '🦕',
+      creatureId: 'baby',
       onTap: () => {
         Audio.playDinoSound('baby')
         Audio.speakWord('Good morning!')
@@ -1010,6 +1011,7 @@ function StoryScreen({ onHome, onDone }: { onHome: () => void; onDone: () => voi
       text: 'The little dinosaur sees a cow.',
       prompt: 'Can you say moo?',
       emoji: '🐄',
+      creatureId: 'cow',
       onTap: () => {
         Audio.speakWord('Cow')
         window.setTimeout(() => Audio.playAnimalSound('cow'), 600)
@@ -1019,6 +1021,7 @@ function StoryScreen({ onHome, onDone }: { onHome: () => void; onDone: () => voi
       text: 'The little dinosaur sees a duck.',
       prompt: 'Can you flap like a duck?',
       emoji: '🦆',
+      creatureId: 'duck',
       onTap: () => {
         Audio.speakWord('Duck')
         window.setTimeout(() => Audio.playAnimalSound('duck'), 600)
@@ -1080,6 +1083,7 @@ function StoryScreen({ onHome, onDone }: { onHome: () => void; onDone: () => voi
 
   return (
     <div className="screen scene scene--jungle">
+      <Scene variant="jungle" />
       <TopBar title="Story Time" onHome={onHome} onReplay={() => Audio.speakWord(p.text)} />
 
       <p className="story-text" aria-live="polite">
@@ -1090,6 +1094,8 @@ function StoryScreen({ onHome, onDone }: { onHome: () => void; onDone: () => voi
         <button type="button" className={`reveal-btn ${wave && !settings.reducedMotion ? 'wave' : ''}`} aria-label={p.text} onClick={p.onTap}>
           {p.isGorilla ? (
             <Gorilla beating={beat} />
+          ) : p.creatureId ? (
+            <Creature id={p.creatureId} title={p.text} />
           ) : (
             <span className="creature-emoji" aria-hidden="true">
               {p.emoji}
@@ -1249,6 +1255,10 @@ function ParentSettingsScreen({ onHome }: { onHome: () => void }) {
         <Toggle label="Calm Sound Mode (quieter)" checked={settings.calmMode} onChange={(v) => set('calmMode', v)} />
 
         <h3 className="settings__group">Play</h3>
+        <div className="seg-row">
+          <span className="toggle__label">Full screen</span>
+          <FullscreenButton />
+        </div>
         <Toggle label="Reduced motion" checked={settings.reducedMotion} onChange={(v) => set('reducedMotion', v)} />
         <Toggle label="Include dinosaurs" checked={settings.dinosaursEnabled} onChange={(v) => set('dinosaursEnabled', v)} />
 
@@ -1344,7 +1354,9 @@ function WelcomeScreen({ onStart }: { onStart: () => void }) {
   return (
     <button type="button" className="screen welcome" aria-label="Tap to play Little Dino Safari" onClick={start}>
       <div className="welcome__art" aria-hidden="true">
-        <span className="welcome__dino float-soft">🦕</span>
+        <div className="welcome__dino float-soft">
+          <Creature id="brontosaurus" title="dinosaur" />
+        </div>
         <span className="welcome__spark twinkle">✨</span>
       </div>
       <h1 className="welcome__title">Little Dino Safari</h1>
